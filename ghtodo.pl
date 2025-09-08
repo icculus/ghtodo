@@ -81,7 +81,10 @@ sub auth_to_github {
 }
 
 sub prepare_descriotion {
-    if ((defined $description) and ($description eq '-')) {
+    if ((defined $description) and ($description eq '--')) {
+        $description = '';
+        return;
+    } elsif ((defined $description) and ($description eq '-')) {
         $description = '';
         while (<STDIN>) {
             $description .= $_;
