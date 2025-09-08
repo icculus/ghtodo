@@ -51,7 +51,7 @@ token=github_pat_[whatver your long string of characters from your GitHub token 
 Put the script in your PATH, or make an alias, like I did:
 
 ```bash
-alias todo $HOME/projects/ghtodo/ghtodo.pl
+alias todo=$HOME/projects/ghtodo/ghtodo.pl
 ```
 
 Then run it:
