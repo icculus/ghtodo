@@ -15,6 +15,8 @@ my $github = undef;  # Access handle for talking to GitHub (v3 API).
 my $home = $ENV{'HOME'};
 my $use_desc_file = 0;
 my $desc_file_path = "$home/.ghtodo_desc.md";
+my @labels = ();
+my $milestone = undef;
 
 # Config/commandline stuff...
 my $title = undef;
@@ -80,45 +82,63 @@ sub auth_to_github {
     $github->set_default_user_repo($github_username, $github_reponame);
 }
 
-sub prepare_descriotion {
+sub prepare_description {
     if ((defined $description) and ($description eq '--')) {
         $description = '';
         return;
-    } elsif ((defined $description) and ($description eq '-')) {
-        $description = '';
-        while (<STDIN>) {
-            $description .= $_;
-        }
-        return;
     }
 
-    return if defined $description;
+    my $do_stdin = ((defined $description) and ($description eq '-'));
 
-    $use_desc_file = 1;
-    my $path = $desc_file_path;
-    if (! -f $path) {
-        open(FH, '>', $path) or die("Can't open '$path': $!\n");
-        print FH qq{
+    return if defined $description and not $do_stdin;
+
+    my $fh = undef;
+    if ($do_stdin) {
+        $fh = *STDIN;
+    } else {
+        $use_desc_file = 1;
+        my $path = $desc_file_path;
+        if (! -f $path) {
+            open(FH, '>', $path) or die("Can't open '$path': $!\n");
+            print FH qq{
 
 
-<!-- Everything below this line is ignored.
-Write any description for the new issue above, in Markdown.
-Leave this file blank to not provide a description. -->
+; labels=
+; milestone=
+; Lines that start with ';', like this one, are stripped before posting.
+; Write any description for the new issue above, in Markdown.
+; Leave this file blank to not provide a description.
 
 };
 
-        close(FH);
+            close(FH);
+        }
+
+        (system("$editor '$path'") == 0) or die("Launching '$editor' seems to have failed: $!\n");
+        open($fh, '<', $path) or die("Couldn't open '$path': $!\n");
     }
 
-    (system("$editor '$path'") == 0) or die("Launching '$editor' seems to have failed: $!\n");
-
-    open(FH, '<', $path) or die("Couldn't open '$path': $!\n");
     $description = '';
-    while (<FH>) {
-        last if /\A\<\!\-\- Everything below this line is ignored\./;
+    while (<$fh>) {
+        if (/\A\; labels\=(.*)/) {
+            $1 =~ s/\A\s+//;
+            $1 =~ s/\s+\Z//;
+            @labels = split(/\s*,\s*/, $1);
+            next;
+        } elsif (/\A; milestone\=(.*)/) {
+            $1 =~ s/\A\s+//;
+            $1 =~ s/\s+\Z//;
+            $milestone = $1;
+            next;
+        }
+        next if /\A\;/;
         $description .= $_;
     }
-    close(FH);
+    close($fh);
+
+    #print("LABELS:"); my $sep = ' '; foreach (@labels) { print("$sep$_"); $sep = ', '; } print("\n");
+    #print("MILESTONE: $milestone\n") if defined $milestone;
+    #exit(0);
 }
 
 sub verify_config {
@@ -129,7 +149,24 @@ sub verify_config {
 }
 
 sub post_new_issue {
-    my $issue = $github->issue->create_issue( { "title" => $title, "body" => $description } );
+    my %args = (
+        'title' => $title,
+        'body' => $description,
+    );
+
+    if (scalar(@labels) > 0) {
+        $args{'labels'} = \@labels;
+    }
+
+    if (defined $milestone) {
+        my $milestones = $github->issue->milestones();
+        foreach (@$milestones) {
+            $args{'milestone'} = $$_{'number'}, last if ($$_{'title'} eq $milestone);
+        }
+        die("Unknown milestone '$milestone'\n") if not defined($args{'milestone'});
+    }
+
+    my $issue = $github->issue->create_issue(\%args);
     unlink($desc_file_path) if ($use_desc_file);
     my $issue_number = int($$issue{'number'});
     print("https://github.com/$github_username/$github_reponame/issues/$issue_number\n");
@@ -141,7 +178,7 @@ sub post_new_issue {
 parse_config_file();
 parse_commandline();
 verify_config();
-prepare_descriotion();
+prepare_description();
 auth_to_github();
 post_new_issue();
 
