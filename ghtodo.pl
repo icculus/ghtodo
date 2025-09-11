@@ -16,6 +16,7 @@ my $home = $ENV{'HOME'};
 my $use_desc_file = 0;
 my $desc_file_path = "$home/.ghtodo_desc.md";
 my @labels = ();
+my $default_labels = '';
 my $milestone = undef;
 
 # Config/commandline stuff...
@@ -52,6 +53,8 @@ sub parse_config_file {
                 $editor = $v;
             } elsif ($k eq 'default_milestone') {
                 $milestone = $v;
+            } elsif ($k eq 'default_labels') {
+                $default_labels = $v;
             } else {
                 die("Unknown config key '$k' in '$path'\n");
             }
@@ -71,6 +74,7 @@ sub parse_commandline {
         $github_token = $1, next if (/\A\-\-token\=(.*)\Z/);
         $editor = $1, next if (/\A\-\-editor\=(.*)\Z/);
         $milestone = $1, next if (/\A\-\-milestone\=(.*)\Z/);
+        $default_labels = $1, next if (/\A\-\-labels\=(.*)\Z/);
         $title = $_, next if not defined $title;
         $description = $_, next if not defined $description;
         usage();
@@ -88,12 +92,16 @@ sub auth_to_github {
 sub prepare_description {
     if ((defined $description) and ($description eq '--')) {
         $description = '';
+        @labels = split(/\s*,\s*/, $default_labels);
         return;
     }
 
     my $do_stdin = ((defined $description) and ($description eq '-'));
 
-    return if defined $description and not $do_stdin;
+    if (defined $description and not $do_stdin) {
+        @labels = split(/\s*,\s*/, $default_labels);
+        return;
+    }
 
     my $fh = undef;
     if ($do_stdin) {
@@ -106,7 +114,7 @@ sub prepare_description {
             print FH qq{
 
 
-; labels=
+; labels=$default_labels
 ; milestone=$milestone
 ; Lines that start with ';', like this one, are stripped before posting.
 ; Write any description for the new issue above, in Markdown.
