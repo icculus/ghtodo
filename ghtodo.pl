@@ -50,6 +50,8 @@ sub parse_config_file {
                 $github_token = $v;
             } elsif ($k eq 'editor') {
                 $editor = $v;
+            } elsif ($k eq 'default_milestone') {
+                $milestone = $v;
             } else {
                 die("Unknown config key '$k' in '$path'\n");
             }
@@ -68,6 +70,7 @@ sub parse_commandline {
         $github_reponame = $1, next if (/\A\-\-repo\=(.*)\Z/);
         $github_token = $1, next if (/\A\-\-token\=(.*)\Z/);
         $editor = $1, next if (/\A\-\-editor\=(.*)\Z/);
+        $milestone = $1, next if (/\A\-\-milestone\=(.*)\Z/);
         $title = $_, next if not defined $title;
         $description = $_, next if not defined $description;
         usage();
@@ -104,7 +107,7 @@ sub prepare_description {
 
 
 ; labels=
-; milestone=
+; milestone=$milestone
 ; Lines that start with ';', like this one, are stripped before posting.
 ; Write any description for the new issue above, in Markdown.
 ; Leave this file blank to not provide a description.
