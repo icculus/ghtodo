@@ -17,7 +17,7 @@ my $use_desc_file = 0;
 my $desc_file_path = "$home/.ghtodo_desc.md";
 my @labels = ();
 my $default_labels = '';
-my $milestone = undef;
+my $milestone = '';
 
 # Config/commandline stuff...
 my $title = undef;
@@ -148,7 +148,7 @@ sub prepare_description {
     close($fh);
 
     #print("LABELS:"); my $sep = ' '; foreach (@labels) { print("$sep$_"); $sep = ', '; } print("\n");
-    #print("MILESTONE: $milestone\n") if defined $milestone;
+    #print("MILESTONE: $milestone\n");
     #exit(0);
 }
 
@@ -169,7 +169,7 @@ sub post_new_issue {
         $args{'labels'} = \@labels;
     }
 
-    if (defined $milestone) {
+    if ($milestone ne '') {
         my $milestones = $github->issue->milestones();
         foreach (@$milestones) {
             $args{'milestone'} = $$_{'number'}, last if ($$_{'title'} eq $milestone);
